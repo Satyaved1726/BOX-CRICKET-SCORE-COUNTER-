@@ -12,13 +12,25 @@ import { SettingsModal } from './components/SettingsModal';
 import type { MatchData } from './types';
 import { getMatchState } from './lib/supabase';
 
-export function App() {
-  const [screen, setScreen] = useState<
-    'splash' | 'home' | 'create_match' | 'join_match' | 'live_umpire' | 'live_spectator' | 'match_finished' | 'match_history'
-  >('splash');
+type ScreenType = 'splash' | 'home' | 'create_match' | 'join_match' | 'live_umpire' | 'live_spectator' | 'match_finished' | 'match_history';
 
+export function App() {
+  const [screen, setScreen] = useState<ScreenType>('splash');
   const [activeMatch, setActiveMatch] = useState<MatchData | null>(null);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+
+  // Sync browser history back actions with app screen navigation states
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.screen) {
+        setScreen(event.state.screen);
+      } else {
+        setScreen('home');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     if (typeof localStorage !== 'undefined') {
@@ -33,39 +45,57 @@ export function App() {
     }
   }, []);
 
+  const navigate = (newScreen: ScreenType) => {
+    setScreen(newScreen);
+    window.history.pushState({ screen: newScreen }, '', `#${newScreen}`);
+  };
+
+  const handleSplashComplete = () => {
+    setScreen('home');
+    window.history.replaceState({ screen: 'home' }, '', '');
+  };
+
+  const handleBack = () => {
+    if (window.history.state && window.history.state.screen !== 'home') {
+      window.history.back();
+    } else {
+      navigate('home');
+    }
+  };
+
   return (
     <MobileContainer>
       {screen === 'splash' && (
-        <Splash onComplete={() => setScreen('home')} />
+        <Splash onComplete={handleSplashComplete} />
       )}
 
       {screen === 'home' && (
         <HomeScreen
           activeMatch={activeMatch}
-          onCreateMatch={() => setScreen('create_match')}
-          onJoinMatch={() => setScreen('join_match')}
-          onResumeMatch={() => setScreen('live_umpire')}
-          onViewHistory={() => setScreen('match_history')}
+          onCreateMatch={() => navigate('create_match')}
+          onJoinMatch={() => navigate('join_match')}
+          onResumeMatch={() => navigate('live_umpire')}
+          onViewHistory={() => navigate('match_history')}
           onOpenSettings={() => setShowSettings(true)}
         />
       )}
 
       {screen === 'create_match' && (
         <CreateMatchScreen
-          onBack={() => setScreen('home')}
+          onBack={handleBack}
           onMatchCreated={(m) => {
             setActiveMatch(m);
-            setScreen('live_umpire');
+            navigate('live_umpire');
           }}
         />
       )}
 
       {screen === 'join_match' && (
         <JoinMatchScreen
-          onBack={() => setScreen('home')}
+          onBack={handleBack}
           onJoinedMatch={(m) => {
             setActiveMatch(m);
-            setScreen('live_spectator');
+            navigate('live_spectator');
           }}
         />
       )}
@@ -73,10 +103,10 @@ export function App() {
       {screen === 'live_umpire' && activeMatch && (
         <LiveScoringUmpire
           match={activeMatch}
-          onBack={() => setScreen('home')}
+          onBack={handleBack}
           onMatchFinished={(m) => {
             setActiveMatch(m);
-            setScreen('match_finished');
+            navigate('match_finished');
           }}
         />
       )}
@@ -84,10 +114,10 @@ export function App() {
       {screen === 'live_spectator' && activeMatch && (
         <SpectatorScreen
           initialMatch={activeMatch}
-          onBack={() => setScreen('home')}
+          onBack={handleBack}
           onMatchFinished={(m) => {
             setActiveMatch(m);
-            setScreen('match_finished');
+            navigate('match_finished');
           }}
         />
       )}
@@ -97,20 +127,20 @@ export function App() {
           match={activeMatch}
           onDone={() => {
             setActiveMatch(null);
-            setScreen('home');
+            navigate('home');
           }}
         />
       )}
 
       {screen === 'match_history' && (
         <MatchHistoryScreen
-          onBack={() => setScreen('home')}
+          onBack={handleBack}
           onOpenMatch={(m) => {
             setActiveMatch(m);
             if (m.status === 'finished') {
-              setScreen('match_finished');
+              navigate('match_finished');
             } else {
-              setScreen('live_spectator');
+              navigate('live_spectator');
             }
           }}
         />

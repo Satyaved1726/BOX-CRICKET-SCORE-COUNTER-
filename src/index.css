@@ -31,9 +31,19 @@ body {
   color: #FFFFFF;
   min-height: 100vh;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
   overflow-x: hidden;
+  width: 100%;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }
 
 /* Custom Scrollbar */

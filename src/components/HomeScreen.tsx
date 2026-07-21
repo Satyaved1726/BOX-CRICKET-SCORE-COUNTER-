@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, PlusCircle, Eye, History, Settings, Play } from 'lucide-react';
+import { PlusCircle, Eye, History, Settings, Play } from 'lucide-react';
 import type { MatchData } from '../types';
 import { sounds } from '../lib/audio';
 import { TeamCarousel } from './TeamCarousel';
@@ -27,8 +27,8 @@ export const HomeScreen: React.FC<Props> = ({
     <div className="flex-1 flex flex-col justify-between p-4 bg-[#05070D] text-white select-none overflow-y-auto font-['Inter'] relative">
       {/* 1. Header (home-header) */}
       <div className="home-header">
-        <div className="trophy-badge">
-          <Trophy size={22} className="text-white" />
+        <div className="trophy-badge overflow-hidden">
+          <img src="/logo.jpg" alt="BSC Logo" className="w-full h-full object-cover" />
         </div>
         <div className="header-text">
           <div className="welcome-label">Welcome umpire</div>

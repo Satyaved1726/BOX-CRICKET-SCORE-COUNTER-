@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { Trophy } from 'lucide-react';
 
 interface Props {
   onComplete: () => void;
@@ -14,7 +13,7 @@ export const Splash: React.FC<Props> = ({ onComplete }) => {
   }, [onComplete]);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-[#08111F] text-white p-6 relative overflow-hidden select-none">
+    <div className="flex-1 flex flex-col items-center justify-center bg-[#05070D] text-white p-6 relative overflow-hidden select-none">
       {/* Dynamic background glowing sports circles */}
       <div className="absolute -top-16 -left-16 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -22,9 +21,9 @@ export const Splash: React.FC<Props> = ({ onComplete }) => {
       {/* Animated Logo Container */}
       <div className="flex flex-col items-center z-10 animate-scale-up">
         <div className="relative mb-6">
-          {/* Outer glowing ring */}
-          <div className="w-28 h-28 rounded-full border-2 border-blue-500/40 flex items-center justify-center bg-[#111827] shadow-[0_0_40px_rgba(41,98,255,0.3)]">
-            <Trophy className="w-14 h-14 text-blue-500 animate-pulse" />
+          {/* Outer glowing ring with Logo */}
+          <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-blue-500/40 flex items-center justify-center bg-[#111827] shadow-[0_0_40px_rgba(41,98,255,0.3)]">
+            <img src="/logo.jpg" alt="BSC Logo" className="w-full h-full object-cover" />
           </div>
 
           {/* Cricket ball spinning around logo */}
@@ -42,12 +41,6 @@ export const Splash: React.FC<Props> = ({ onComplete }) => {
         <p className="text-xs tracking-widest text-blue-400 font-semibold uppercase mb-6">
           Box Cricket Score Counter
         </p>
-
-        {/* Subtitle badge */}
-        <div className="flex items-center gap-2 px-3 py-1 bg-gray-800/80 rounded-full border border-gray-700/60 text-[11px] text-gray-300">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span>Live Real-Time Scoring Engine</span>
-        </div>
       </div>
 
       {/* Footer loading indicator */}
@@ -55,7 +48,6 @@ export const Splash: React.FC<Props> = ({ onComplete }) => {
         <div className="w-32 h-1 bg-gray-800 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 rounded-full animate-pulse" style={{ width: '100%' }}></div>
         </div>
-        <span className="text-[10px] tracking-wide text-gray-500">POWERED BY SUPABASE REALTIME</span>
       </div>
     </div>
   );

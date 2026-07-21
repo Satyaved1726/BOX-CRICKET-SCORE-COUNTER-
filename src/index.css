@@ -1193,3 +1193,117 @@ body {
   font-size: 11px;
 }
 
+/* CREX-Inspired Tabbed Scorecard System */
+.crex-tabs-container {
+  display: flex;
+  overflow-x: auto;
+  background: #08111F;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  scrollbar-width: none; /* Firefox */
+  -webkit-overflow-scrolling: touch;
+}
+.crex-tabs-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+.crex-tab {
+  padding: 14px 20px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #8B93A7;
+  white-space: nowrap;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  text-align: center;
+  flex-shrink: 0;
+}
+.crex-tab.active {
+  color: #F43F5E; /* Rose Pink color similar to CREX accent */
+  border-bottom-color: #F43F5E;
+}
+
+/* CREX Batter & Bowler Tables */
+.crex-table-header {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr 0.8fr 0.8fr 1fr;
+  padding: 6px 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #8B93A7;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.crex-table-row {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr 0.8fr 0.8fr 1fr;
+  padding: 11px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.crex-table-row.inactive {
+  color: #A1A1AA;
+  font-weight: 500;
+}
+
+.crex-bowler-header {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 1fr 1fr;
+  padding: 6px 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #8B93A7;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.crex-bowler-row {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 1fr 1fr;
+  padding: 11px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.crex-scorecard-subrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px 0;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.crex-scorecard-subrow .pship {
+  color: #3B82F6;
+  cursor: pointer;
+}
+.crex-scorecard-subrow .pship:hover {
+  text-decoration: underline;
+}
+.crex-scorecard-subrow .lastwkt {
+  color: #8B93A7;
+}
+
+/* Full Scorecard View Details */
+.crex-scorecard-innings-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.crex-scorecard-innings-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+

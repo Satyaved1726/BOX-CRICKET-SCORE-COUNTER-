@@ -5,7 +5,7 @@ import { subscribeToMatch } from '../lib/supabase';
 import { calculateCRR, calculateRRR } from '../lib/scoring';
 import { CelebrationOverlay } from './CelebrationOverlay';
 import { sounds } from '../lib/audio';
-import { RollingNumber } from './RollingNumber';
+import { StatCharts } from './StatCharts';
 
 interface Props {
   initialMatch: MatchData;
@@ -13,12 +13,15 @@ interface Props {
   onMatchFinished: (match: MatchData) => void;
 }
 
+type TabType = 'live' | 'commentary' | 'scorecard' | 'stats';
+
 export const SpectatorScreen: React.FC<Props> = ({ initialMatch, onBack, onMatchFinished }) => {
   const [match, setMatch] = useState<MatchData>(initialMatch);
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   const [muted, setMuted] = useState<boolean>(false);
   const [viewingAllOvers, setViewingAllOvers] = useState<boolean>(false);
   const [selectedOversInnings, setSelectedOversInnings] = useState<1 | 2>(1);
+  const [activeTab, setActiveTab] = useState<TabType>('live');
 
   useEffect(() => {
     const unsubscribe = subscribeToMatch(initialMatch.roomCode, (updatedMatch, newCelebration) => {
@@ -43,7 +46,6 @@ export const SpectatorScreen: React.FC<Props> = ({ initialMatch, onBack, onMatch
   };
 
   const isSecondInnings = match.currentInnings === 2;
-  const currentTeam = match.battingTeam;
   const score = isSecondInnings ? match.scoreB : match.scoreA;
   const wickets = isSecondInnings ? match.wicketsB : match.wicketsA;
   const overs = isSecondInnings ? match.oversB : match.oversA;
@@ -99,7 +101,8 @@ export const SpectatorScreen: React.FC<Props> = ({ initialMatch, onBack, onMatch
 
     return {
       name: wicketEvent.wicketBatsman || wicketEvent.batsmanName,
-      desc: wicketEvent.commentaryText || `${wicketEvent.wicketBatsman || wicketEvent.batsmanName} out ${wicketEvent.wicketType || 'dismissed'}`
+      runs: wicketEvent.runsScored,
+      balls: wicketEvent.isLegalDelivery ? 1 : 0
     };
   };
 
@@ -195,6 +198,65 @@ export const SpectatorScreen: React.FC<Props> = ({ initialMatch, onBack, onMatch
     return Object.values(oversMap).sort((a, b) => a.overNumber - b.overNumber);
   };
 
+  // Reconstruct Full Innings Scorecard from Ball Events list
+  const computeInningsScorecard = (innings: 1 | 2) => {
+    const events = match.ballEvents.filter(e => e.innings === innings);
+    const batters: Record<string, { name: string; runs: number; balls: number; fours: number; sixes: number; isOut: boolean; outType?: string }> = {};
+    const bowlers: Record<string, { name: string; legalBalls: number; runsConceded: number; wickets: number }> = {};
+
+    events.forEach(e => {
+      // Batter parsing
+      if (!batters[e.batsmanName]) {
+        batters[e.batsmanName] = { name: e.batsmanName, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
+      }
+      batters[e.batsmanName].runs += e.runsScored;
+      if (e.isLegalDelivery) {
+        batters[e.batsmanName].balls += 1;
+      }
+      if (e.runsScored === 4) {
+        batters[e.batsmanName].fours += 1;
+      }
+      if (e.runsScored === 6) {
+        batters[e.batsmanName].sixes += 1;
+      }
+      if (e.isWicket) {
+        const outPlayer = e.wicketBatsman || e.batsmanName;
+        if (!batters[outPlayer]) {
+          batters[outPlayer] = { name: outPlayer, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
+        }
+        batters[outPlayer].isOut = true;
+        batters[outPlayer].outType = e.wicketType;
+      }
+
+      // Bowler parsing
+      if (!bowlers[e.bowlerName]) {
+        bowlers[e.bowlerName] = { name: e.bowlerName, legalBalls: 0, runsConceded: 0, wickets: 0 };
+      }
+      bowlers[e.bowlerName].runsConceded += e.totalBallRuns;
+      if (e.isLegalDelivery) {
+        bowlers[e.bowlerName].legalBalls += 1;
+      }
+      if (e.isWicket && e.wicketType !== 'run_out') {
+        bowlers[e.bowlerName].wickets += 1;
+      }
+    });
+
+    // Merge active striker/non-striker/bowler metrics if live
+    if (innings === match.currentInnings) {
+      if (match.strikerName && !batters[match.strikerName]) {
+        batters[match.strikerName] = { name: match.strikerName, runs: match.strikerRuns, balls: match.strikerBalls, fours: 0, sixes: 0, isOut: false };
+      }
+      if (match.nonStrikerName && !batters[match.nonStrikerName]) {
+        batters[match.nonStrikerName] = { name: match.nonStrikerName, runs: match.nonStrikerRuns, balls: match.nonStrikerBalls, fours: 0, sixes: 0, isOut: false };
+      }
+      if (match.bowlerName && !bowlers[match.bowlerName]) {
+        bowlers[match.bowlerName] = { name: match.bowlerName, legalBalls: match.bowlerLegalBalls, runsConceded: match.bowlerRuns, wickets: match.bowlerWickets };
+      }
+    }
+
+    return { batters: Object.values(batters), bowlers: Object.values(bowlers) };
+  };
+
   const partnership = getPartnership();
   const lastWicket = getLastWicket();
   const winProb = getWinProbability();
@@ -278,18 +340,25 @@ export const SpectatorScreen: React.FC<Props> = ({ initialMatch, onBack, onMatch
     );
   }
 
+  // Calculate stats formatting
+  const currentInningsBowlerEcon = match.bowlerLegalBalls > 0
+    ? ((match.bowlerRuns / match.bowlerLegalBalls) * 6).toFixed(2)
+    : '0.00';
+
   return (
-    <div className="flex-1 flex flex-col justify-between bg-[#05070D] text-white p-3.5 select-none relative overflow-y-auto font-['Inter']">
+    <div className="flex-1 flex flex-col bg-[#05070D] text-white select-none relative overflow-y-auto font-['Inter'] min-h-screen">
       {/* Dynamic celebration event animation overlay */}
       <CelebrationOverlay celebration={celebration} onFinish={() => setCelebration(null)} />
 
-      {/* 1. AppBar header */}
-      <div className="row-grid-auto mb-3.5 shrink-0">
+      {/* 1. AppBar Header */}
+      <div className="flex items-center justify-between p-4 bg-[#08111F] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <button onClick={onBack} className="text-gray-400 hover:text-white p-1 text-xl font-bold shrink-0">
-            ←
+          <button onClick={onBack} className="text-gray-400 hover:text-white p-1 transition shrink-0">
+            <ArrowLeft size={22} />
           </button>
-          <span className="text-white font-bold text-sm contain-text">{match.matchName}</span>
+          <span className="text-white font-extrabold text-sm truncate">
+            {match.teamA} vs {match.teamB}, {match.matchName}
+          </span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -299,171 +368,308 @@ export const SpectatorScreen: React.FC<Props> = ({ initialMatch, onBack, onMatch
           </div>
           <button
             onClick={toggleSound}
-            className="p-1.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-gray-300 btn-material"
+            className="p-1.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-gray-300 transition"
           >
             {muted ? <VolumeX size={16} className="text-red-400" /> : <Volume2 size={16} className="text-emerald-400" />}
           </button>
         </div>
       </div>
 
-      {/* 2. Premium Score Card */}
-      <div className="score-card-demo shrink-0 mb-3">
-        <div className="row-grid-auto items-end relative z-10">
-          <div className="min-w-0">
-            <div className="score-num-demo">
-              <RollingNumber value={score} /><span className="wkts">/<RollingNumber value={wickets} /></span>
-            </div>
-            <div className="text-gray-400 text-xs mt-1.5 font-medium contain-text">
-              Overs {overs} / {match.totalOvers} &nbsp;&middot;&nbsp; {currentTeam}
-            </div>
-          </div>
-          <div className="text-center shrink-0 pl-2">
-            <div className="text-[#00C6FF] font-bold text-lg font-mono">{crr}</div>
-            <div className="text-[#8B93A7] text-[10px] tracking-wider font-semibold uppercase">CRR</div>
-          </div>
+      {/* 2. CREX Horizontal Scrollable Navigation Tabs */}
+      <div className="crex-tabs-container">
+        <div onClick={() => setActiveTab('live')} className={`crex-tab ${activeTab === 'live' ? 'active' : ''}`}>
+          Live
         </div>
+        <div onClick={() => setActiveTab('commentary')} className={`crex-tab ${activeTab === 'commentary' ? 'active' : ''}`}>
+          Commentary
+        </div>
+        <div onClick={() => setActiveTab('scorecard')} className={`crex-tab ${activeTab === 'scorecard' ? 'active' : ''}`}>
+          Scorecard
+        </div>
+        <div onClick={() => setActiveTab('stats')} className={`crex-tab ${activeTab === 'stats' ? 'active' : ''}`}>
+          Graphs &amp; Stats
+        </div>
+      </div>
 
-        {/* Target Banner */}
-        {isSecondInnings && (
-          <div className="target-banner-demo wrap-text mt-2">
-            Target: {target} &nbsp;&middot;&nbsp; Need {Math.max(0, runsNeeded)} off {Math.max(0, remainingBalls)} balls (RRR: {rrr})
+      {/* Tab Contents */}
+      <div className="p-4 flex-1 flex flex-col overflow-y-auto">
+        {activeTab === 'live' && (
+          <>
+            {/* CREX Score Box */}
+            <div className="bg-[#111827] border border-white/10 rounded-22 p-4 mb-4">
+              <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-lg tracking-wide text-white">{match.battingTeam}</span>
+                    {isSecondInnings && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-rose-600/20 text-rose-400 rounded-full font-bold">2nd Inn</span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-1.5">
+                    <span className="text-3xl font-black font-['Poppins'] text-[#00C6FF]">
+                      {score}-{wickets}
+                    </span>
+                    <span className="text-xs text-gray-400 font-medium">({overs} Ov)</span>
+                  </div>
+                </div>
+
+                {/* Right side large target runs indicator */}
+                <div className="text-right">
+                  <div className="text-4xl font-black text-rose-400 animate-pulse font-['Poppins']">
+                    {isSecondInnings ? Math.max(0, runsNeeded) : score}
+                  </div>
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">
+                    {isSecondInnings ? 'Runs Req' : 'Current runs'}
+                  </div>
+                </div>
+              </div>
+
+              {/* CRR & Toss Details Row */}
+              <div className="flex justify-between items-center pt-3 text-xs text-gray-400 font-bold border-b border-white/5 pb-3">
+                <span>CRR: {crr}</span>
+                <span>Toss: {match.tossWinner} ({match.tossDecision})</span>
+              </div>
+
+              {/* Over Ball Chips Row */}
+              <div className="flex justify-between items-center pt-3">
+                <div className="flex gap-2 items-center overflow-x-auto">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">This Over:</span>
+                  {match.ballEvents.length === 0 ? (
+                    <span className="text-xs text-gray-500 italic">Waiting...</span>
+                  ) : (
+                    match.ballEvents.slice(-6).map((evt) => renderBallChip(evt))
+                  )}
+                </div>
+                <button
+                  onClick={() => { sounds.playTap(); setViewingAllOvers(true); }}
+                  className="text-xs font-bold text-[#F43F5E] hover:underline shrink-0 pl-3"
+                >
+                  Overs ›
+                </button>
+              </div>
+            </div>
+
+            {/* Chasing Target Banner */}
+            {isSecondInnings && (
+              <div className="bg-rose-950/20 border border-rose-500/20 rounded-20 p-3.5 mb-4 text-xs font-bold text-center text-rose-300">
+                Need {Math.max(0, runsNeeded)} runs off {Math.max(0, remainingBalls)} balls at RRR: {rrr}
+              </div>
+            )}
+
+            {/* Win Probability Block */}
+            <div className="win-prob-container">
+              <div className="win-prob-header">
+                <span>{match.teamA} Prob</span>
+                <span>{match.teamB} Prob</span>
+              </div>
+              <div className="win-prob-bar-wrapper">
+                <div
+                  className="win-prob-bar-fill"
+                  style={{ width: `${winProb.teamA}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs font-mono font-bold mt-1.5 text-[#8B93A7]">
+                <span>{winProb.teamA}%</span>
+                <span>{winProb.teamB}%</span>
+              </div>
+            </div>
+
+            {/* Tabular Batter Card */}
+            <div className="bg-[#111827] border border-white/10 rounded-22 overflow-hidden mb-4 p-1">
+              <div className="crex-table-header">
+                <span>Batter</span>
+                <span className="text-right">R (B)</span>
+                <span className="text-center">4s</span>
+                <span className="text-center">6s</span>
+                <span className="text-right">SR</span>
+              </div>
+
+              {/* Striker Row */}
+              <div className="crex-table-row">
+                <span className="truncate flex items-center gap-1">
+                  {match.strikerName} <span className="text-amber-400">🏏</span>
+                </span>
+                <span className="text-right font-mono">{match.strikerRuns} ({match.strikerBalls})</span>
+                <span className="text-center font-mono">0</span>
+                <span className="text-center font-mono">0</span>
+                <span className="text-right font-mono text-[#00C6FF]">{strikerSR}</span>
+              </div>
+
+              {/* Non-Striker Row */}
+              <div className="crex-table-row inactive">
+                <span className="truncate">{match.nonStrikerName}</span>
+                <span className="text-right font-mono">{match.nonStrikerRuns} ({match.nonStrikerBalls})</span>
+                <span className="text-center font-mono">0</span>
+                <span className="text-center font-mono">0</span>
+                <span className="text-right font-mono text-[#8B93A7]">{nonStrikerSR}</span>
+              </div>
+
+              {/* Partnership and last wicket details row */}
+              <div className="crex-scorecard-subrow py-3">
+                <span className="pship">P'ship: {partnership.runs} ({partnership.balls})</span>
+                {lastWicket && (
+                  <span className="lastwkt">Last wkt: {lastWicket.name} {lastWicket.runs} ({lastWicket.balls})</span>
+                )}
+              </div>
+            </div>
+
+            {/* Tabular Bowler Card */}
+            <div className="bg-[#111827] border border-white/10 rounded-22 overflow-hidden mb-4 p-1">
+              <div className="crex-bowler-header">
+                <span>Bowler</span>
+                <span className="text-right">W-R</span>
+                <span className="text-center">Overs</span>
+                <span className="text-right">Econ</span>
+              </div>
+
+              <div className="crex-bowler-row">
+                <span className="truncate">{match.bowlerName}</span>
+                <span className="text-right font-mono text-rose-400">
+                  {match.bowlerWickets}-{match.bowlerRuns}
+                </span>
+                <span className="text-center font-mono">{match.bowlerOvers}</span>
+                <span className="text-right font-mono text-[#00E676]">{currentInningsBowlerEcon}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'commentary' && (
+          <div className="flex-grow flex flex-col overflow-hidden max-h-[75vh]">
+            <div className="flex items-center gap-2 pb-2 border-b border-white/10 mb-3 shrink-0">
+              <MessageSquare size={16} className="text-blue-400 shrink-0" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-200">Live Commentary Log</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {match.commentary.length === 0 ? (
+                <p className="text-xs text-gray-500 italic text-center py-8">No commentary recorded yet</p>
+              ) : (
+                match.commentary.map((text, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-xl text-xs leading-relaxed transition ${
+                      idx === 0
+                        ? 'bg-blue-950/70 border border-blue-800/80 text-blue-200 font-semibold shadow'
+                        : 'bg-[#111827] border border-white/5 text-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
+                      <span className="text-[10px] text-gray-400 font-mono font-bold">Ball #{match.commentary.length - idx}</span>
+                    </div>
+                    {text}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
-      </div>
 
-      {/* 3. This Over Circular Chips */}
-      <div className="bg-[#111827] border border-white/10 rounded-[20px] p-4 mb-3 shrink-0 min-w-0">
-        <div className="row-grid-auto mb-2.5 pr-2">
-          <span className="text-[#8B93A7] text-[11px] font-bold tracking-wider uppercase contain-text">This Over</span>
-          <button
-            onClick={() => { sounds.playTap(); setViewingAllOvers(true); }}
-            className="text-xs text-blue-400 font-bold hover:underline shrink-0 pl-2"
-          >
-            Overs Breakdown ›
-          </button>
-        </div>
-
-        <div className="flex gap-2 flex-wrap">
-          {match.ballEvents.length === 0 ? (
-            <span className="text-xs text-gray-500 italic">Waiting for bowler...</span>
-          ) : (
-            match.ballEvents.slice(-8).map((evt) => renderBallChip(evt))
-          )}
-        </div>
-      </div>
-
-      {/* 4. Dynamic Win Probability Progress Bar */}
-      <div className="win-prob-container shrink-0">
-        <div className="win-prob-header">
-          <span>{match.teamA} Prob</span>
-          <span>{match.teamB} Prob</span>
-        </div>
-        <div className="win-prob-bar-wrapper">
-          <div
-            className="win-prob-bar-fill"
-            style={{ width: `${winProb.teamA}%` }}
-          ></div>
-        </div>
-        <div className="flex justify-between text-xs font-mono font-bold mt-1 text-[#8B93A7]">
-          <span>{winProb.teamA}%</span>
-          <span>{winProb.teamB}%</span>
-        </div>
-      </div>
-
-      {/* 5. Batsmen & Partnership Details Card */}
-      <div className="bg-[#111827] border border-white/10 rounded-[20px] p-4 mb-3 shrink-0 min-w-0">
-        <div className="text-[#8B93A7] text-[11px] font-bold tracking-wider mb-2.5 uppercase contain-text">Batting</div>
-
-        {/* Striker Row */}
-        <div className="row-grid-auto py-1.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow shrink-0">
-              {match.strikerName.substring(0, 2).toUpperCase()}
-            </div>
-            <div className="text-white text-xs font-bold contain-text">
-              {match.strikerName} <span className="star-shimmer">★</span>
-            </div>
-          </div>
-          <div className="text-[#9CA3AF] text-xs text-right font-mono shrink-0 pl-2">
-            <b className="text-white font-bold">{match.strikerRuns}</b> ({match.strikerBalls}) &nbsp; SR <b className="text-white font-bold">{strikerSR}</b>
-          </div>
-        </div>
-
-        {/* Non-Striker Row */}
-        <div className="row-grid-auto py-1.5 border-b border-white/5 pb-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow shrink-0">
-              {match.nonStrikerName.substring(0, 2).toUpperCase()}
-            </div>
-            <div className="text-white text-xs font-bold contain-text">
-              {match.nonStrikerName}
-            </div>
-          </div>
-          <div className="text-[#9CA3AF] text-xs text-right font-mono shrink-0 pl-2">
-            <b className="text-white font-bold">{match.nonStrikerRuns}</b> ({match.nonStrikerBalls}) &nbsp; SR <b className="text-white font-bold">{nonStrikerSR}</b>
-          </div>
-        </div>
-
-        {/* Partnership row */}
-        <div className="flex justify-between items-center pt-2">
-          <span className="text-[10px] font-bold text-[#8B93A7] uppercase">Current Partnership</span>
-          <span className="text-xs font-bold text-[#00E676]">{partnership.runs} Runs <span className="text-gray-400 font-normal">({partnership.balls} balls)</span></span>
-        </div>
-      </div>
-
-      {/* 6. Bowler Details Card */}
-      <div className="bg-[#111827] border border-white/10 rounded-[20px] p-4 mb-3 row-grid-auto shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-purple-900/60 border border-purple-500/40 text-purple-300 flex items-center justify-center text-xs font-bold shrink-0">
-            {match.bowlerName.substring(0, 2).toUpperCase()}
-          </div>
-          <span className="text-white text-xs font-bold contain-text">
-            {match.bowlerName}
-          </span>
-        </div>
-        <div className="text-[#9CA3AF] text-xs font-mono shrink-0 pl-2">
-          <b className="text-white">{match.bowlerOvers}</b> Ov &nbsp;&middot;&nbsp; <b className="text-white">{match.bowlerRuns}</b> R &nbsp;&middot;&nbsp; <b className="text-red-400">{match.bowlerWickets}</b> W
-        </div>
-      </div>
-
-      {/* 7. Last Wicket Details Card */}
-      {lastWicket && (
-        <div className="bg-red-950/20 border border-red-500/20 rounded-[20px] p-4 mb-3 shrink-0">
-          <span className="text-red-400 text-[10px] font-bold tracking-wider uppercase block">Last Wicket Dismissed</span>
-          <p className="text-xs font-bold text-white mt-1">{lastWicket.name}</p>
-          <p className="text-[11px] text-red-300 mt-0.5">{lastWicket.desc}</p>
-        </div>
-      )}
-
-      {/* 8. Live Commentary Feed */}
-      <div className="bg-[#111827] border border-white/10 rounded-[20px] p-4 flex flex-col min-h-[140px] mb-1 overflow-hidden shrink-0 shadow-md">
-        <div className="flex items-center gap-2 pb-2 border-b border-white/10 shrink-0">
-          <MessageSquare size={16} className="text-blue-400 shrink-0" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-200 contain-text">Live Commentary</h3>
-        </div>
-
-        <div className="flex-1 overflow-y-auto pt-2 space-y-2 pr-1">
-          {match.commentary.length === 0 ? (
-            <p className="text-xs text-gray-500 italic text-center py-4">No commentary recorded yet</p>
-          ) : (
-            match.commentary.map((text, idx) => (
-              <div
-                key={idx}
-                className={`p-2.5 rounded-xl text-xs leading-relaxed transition ${
-                  idx === 0
-                    ? 'bg-blue-950/70 border border-blue-800/80 text-blue-200 font-semibold shadow'
-                    : 'bg-[#05070D] border border-white/5 text-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
-                  <span className="text-[10px] text-gray-400 font-mono font-bold">Delivery #{match.commentary.length - idx}</span>
-                </div>
-                {text}
+        {activeTab === 'scorecard' && (
+          <div className="space-y-4">
+            {/* Innings 1 Scorecard */}
+            <div className="crex-scorecard-innings-box">
+              <div className="crex-scorecard-innings-title pb-2 border-b border-white/5">
+                <span>{match.teamA} (Innings 1)</span>
+                <span className="text-rose-400">{match.scoreA}/{match.wicketsA} ({match.oversA} Ov)</span>
               </div>
-            ))
-          )}
-        </div>
+              {/* Batters */}
+              <div className="crex-table-header">
+                <span>Batter</span>
+                <span className="text-right">R (B)</span>
+                <span className="text-center">4s</span>
+                <span className="text-center">6s</span>
+                <span className="text-right">SR</span>
+              </div>
+              {computeInningsScorecard(1).batters.map((b, idx) => (
+                <div key={idx} className="crex-table-row">
+                  <span className="truncate">{b.name} {b.isOut ? '' : '*'}</span>
+                  <span className="text-right font-mono">{b.runs} ({b.balls})</span>
+                  <span className="text-center font-mono">{b.fours}</span>
+                  <span className="text-center font-mono">{b.sixes}</span>
+                  <span className="text-right font-mono text-gray-400">
+                    {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
+                  </span>
+                </div>
+              ))}
+
+              {/* Bowlers */}
+              <div className="crex-bowler-header mt-4">
+                <span>Bowler</span>
+                <span className="text-right">W-R</span>
+                <span className="text-center">Overs</span>
+                <span className="text-right">Econ</span>
+              </div>
+              {computeInningsScorecard(1).bowlers.map((b, idx) => (
+                <div key={idx} className="crex-bowler-row">
+                  <span className="truncate">{b.name}</span>
+                  <span className="text-right font-mono text-rose-400">{b.wickets}-{b.runsConceded}</span>
+                  <span className="text-center font-mono">{(b.legalBalls / 6).toFixed(1)}</span>
+                  <span className="text-right font-mono text-[#00E676]">
+                    {b.legalBalls > 0 ? ((b.runsConceded / b.legalBalls) * 6).toFixed(2) : '0.00'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Innings 2 Scorecard */}
+            <div className="crex-scorecard-innings-box">
+              <div className="crex-scorecard-innings-title pb-2 border-b border-white/5">
+                <span>{match.teamB} (Innings 2)</span>
+                <span className="text-rose-400">
+                  {match.currentInnings >= 2 ? `${match.scoreB}/${match.wicketsB} (${match.oversB} Ov)` : 'Yet to bat'}
+                </span>
+              </div>
+              {match.currentInnings >= 2 ? (
+                <>
+                  <div className="crex-table-header">
+                    <span>Batter</span>
+                    <span className="text-right">R (B)</span>
+                    <span className="text-center">4s</span>
+                    <span className="text-center">6s</span>
+                    <span className="text-right">SR</span>
+                  </div>
+                  {computeInningsScorecard(2).batters.map((b, idx) => (
+                    <div key={idx} className="crex-table-row">
+                      <span className="truncate">{b.name} {b.isOut ? '' : '*'}</span>
+                      <span className="text-right font-mono">{b.runs} ({b.balls})</span>
+                      <span className="text-center font-mono">{b.fours}</span>
+                      <span className="text-center font-mono">{b.sixes}</span>
+                      <span className="text-right font-mono text-gray-400">
+                        {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
+                      </span>
+                    </div>
+                  ))}
+
+                  <div className="crex-bowler-header mt-4">
+                    <span>Bowler</span>
+                    <span className="text-right">W-R</span>
+                    <span className="text-center">Overs</span>
+                    <span className="text-right">Econ</span>
+                  </div>
+                  {computeInningsScorecard(2).bowlers.map((b, idx) => (
+                    <div key={idx} className="crex-bowler-row">
+                      <span className="truncate">{b.name}</span>
+                      <span className="text-right font-mono text-rose-400">{b.wickets}-{b.runsConceded}</span>
+                      <span className="text-center font-mono">{(b.legalBalls / 6).toFixed(1)}</span>
+                      <span className="text-right font-mono text-[#00E676]">
+                        {b.legalBalls > 0 ? ((b.runsConceded / b.legalBalls) * 6).toFixed(2) : '0.00'}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <p className="text-xs text-gray-500 italic text-center py-4">Second innings has not started yet</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'stats' && (
+          <div className="flex-1 overflow-y-auto">
+            <StatCharts match={match} />
+          </div>
+        )}
       </div>
     </div>
   );

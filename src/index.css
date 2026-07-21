@@ -1033,3 +1033,163 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ==========================================================================
+   CREX-INSPIRED SPECTATOR STYLING
+   ========================================================================== */
+.crex-chip {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #FFFFFF;
+  flex-shrink: 0;
+  text-align: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.crex-chip-dot { background: #4B5563; } /* Gray */
+.crex-chip-run { background: #2563EB; } /* Blue */
+.crex-chip-four { background: #16A34A; } /* Green */
+.crex-chip-six { background: #7C3AED; } /* Purple */
+.crex-chip-wide { background: #EA580C; } /* Orange */
+.crex-chip-noball { background: #EAB308; color: #000000; } /* Yellow */
+.crex-chip-bye { background: #06B6D4; } /* Cyan */
+.crex-chip-legbye { background: #0D9488; } /* Teal */
+.crex-chip-wicket { background: #DC2626; } /* Red */
+
+/* Win Probability Bar */
+.win-prob-container {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.win-prob-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8B93A7;
+  margin-bottom: 6px;
+}
+.win-prob-bar-wrapper {
+  height: 8px;
+  background: #9333EA; /* Purple for Team B default */
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+}
+.win-prob-bar-fill {
+  height: 100%;
+  background: #2962FF; /* Blue for Team A */
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* All Overs View layout */
+.overs-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #05070D;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.overs-segment-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 4px;
+  margin: 12px 16px;
+}
+.overs-segment-btn {
+  text-align: center;
+  padding: 10px 0;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8B93A7;
+  transition: all 0.2s ease;
+}
+.overs-segment-btn.active {
+  background: #2962FF;
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(41, 98, 255, 0.35);
+}
+.overs-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 20px;
+}
+.overs-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.overs-card-row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.overs-card-num {
+  font-size: 14px;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+.overs-card-runs {
+  font-size: 14px;
+  font-weight: 800;
+  color: #00E676;
+}
+.overs-card-bowler {
+  font-size: 11px;
+  color: #8B93A7;
+  font-weight: 600;
+}
+.overs-card-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.overs-wicket-event {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.overs-wicket-title {
+  color: #EF4444;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.overs-wicket-desc {
+  color: #FCA5A5;
+  font-size: 12px;
+  font-weight: 700;
+}
+.overs-wicket-extra {
+  color: #F87171;
+  font-size: 11px;
+}
+

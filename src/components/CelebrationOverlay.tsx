@@ -16,25 +16,30 @@ export const CelebrationOverlay: React.FC<Props> = ({ celebration, onFinish }) =
     const isSix = celebration.type === 'SIX' || (celebration.type as string) === 'six_6';
     const isWicket = celebration.type === 'WICKET' || (celebration.type as string) === 'wicket';
 
+    let duration = 1000; // default 1 sec
+
     if (isFour) {
       sounds.playFourBoundary();
+      duration = 1000; // 1 sec
     } else if (isSix) {
       sounds.playSixBoundary();
+      duration = 1500; // 1.5 sec
       try {
         confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: ['#FF6D00', '#FFAB00', '#FFD700', '#2962FF']
+          particleCount: 120,
+          spread: 90,
+          origin: { y: 0.65 },
+          colors: ['#7C3AED', '#A78BFA', '#2563EB', '#3B82F6', '#FFFFFF']
         });
       } catch (e) {}
     } else if (isWicket) {
       sounds.playWicket();
+      duration = 1000; // 1 sec
     }
 
     const timer = setTimeout(() => {
       onFinish();
-    }, 1800);
+    }, duration);
 
     return () => clearTimeout(timer);
   }, [celebration, onFinish]);
@@ -47,41 +52,51 @@ export const CelebrationOverlay: React.FC<Props> = ({ celebration, onFinish }) =
 
   return (
     <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden">
-      {/* 1. FOUR (4) Celebration */}
+      {/* 1. FOUR (4) Celebration - Blue Wave / Boundary Glow */}
       {isFour && (
-        <div className="flex flex-col items-center justify-center space-y-2 animate-scale-up">
-          <div className="w-32 h-32 rounded-full border-4 border-emerald-400 glow-green flex items-center justify-center bg-emerald-950/40 backdrop-blur-md shadow-[0_0_50px_rgba(0,230,118,0.6)]">
-            <span className="text-6xl font-black font-['Poppins'] text-emerald-400 animate-bounce">4</span>
-          </div>
-          <div className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 rounded-full text-white font-black text-xl uppercase tracking-widest shadow-2xl border-2 border-white/20">
-            BOUNDING FOUR!
-          </div>
-        </div>
-      )}
-
-      {/* 2. SIX (6) Celebration */}
-      {isSix && (
-        <div className="flex flex-col items-center justify-center space-y-2 animate-scale-up">
-          <div className="w-36 h-36 rounded-full border-4 border-amber-400 glow-gold flex items-center justify-center bg-amber-950/50 backdrop-blur-md shadow-[0_0_60px_rgba(255,109,0,0.8)]">
-            <span className="text-7xl font-black font-['Poppins'] text-amber-400 animate-pulse">6</span>
-          </div>
-          <div className="px-8 py-2.5 bg-gradient-to-r from-orange-600 via-amber-500 to-yellow-400 rounded-full text-gray-900 font-black text-2xl uppercase tracking-widest shadow-2xl border-2 border-white/40">
-            MONSTER SIX! 🔥
-          </div>
-        </div>
-      )}
-
-      {/* 3. WICKET Celebration */}
-      {isWicket && (
-        <div className="flex flex-col items-center justify-center space-y-2 animate-scale-up flash-wicket">
-          <div className="w-36 h-36 rounded-full border-4 border-red-500 flex items-center justify-center bg-red-950/60 backdrop-blur-md shadow-[0_0_60px_rgba(255,23,68,0.8)]">
-            <div className="text-center">
-              <span className="text-5xl font-black font-['Poppins'] text-red-500 block">W</span>
-              <span className="text-[10px] font-extrabold text-red-300 uppercase tracking-widest block">OUT</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-blue-950/20 backdrop-blur-[2px] animate-fade-in">
+          {/* Ripple Ring Effect */}
+          <div className="absolute w-72 h-72 rounded-full border border-blue-500/30 animate-ping opacity-60"></div>
+          <div className="flex flex-col items-center space-y-2 z-10 animate-scale-up">
+            <div className="w-28 h-28 rounded-full border-4 border-blue-400 bg-blue-950/80 flex items-center justify-center shadow-[0_0_40px_rgba(37,99,235,0.7)]">
+              <span className="text-6xl font-black font-['Poppins'] text-blue-400">4</span>
+            </div>
+            <div className="px-6 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full text-white font-black text-lg uppercase tracking-widest shadow-lg border border-white/10">
+              FOUR!
             </div>
           </div>
-          <div className="px-8 py-2.5 bg-gradient-to-r from-red-700 to-rose-600 rounded-full text-white font-black text-2xl uppercase tracking-widest shadow-2xl border-2 border-white/30">
-            WICKET FALLEN! 🏏
+        </div>
+      )}
+
+      {/* 2. SIX (6) Celebration - Confetti, Screen Pulse, Purple theme */}
+      {isSix && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-purple-950/30 backdrop-blur-[3px] animate-pulse">
+          <div className="flex flex-col items-center space-y-2 z-10 animate-scale-up">
+            <div className="w-32 h-32 rounded-full border-4 border-purple-400 bg-purple-950/80 flex items-center justify-center shadow-[0_0_55px_rgba(124,58,237,0.8)]">
+              <span className="text-7xl font-black font-['Poppins'] text-purple-300">6</span>
+            </div>
+            <div className="px-8 py-2 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-500 rounded-full text-white font-black text-xl uppercase tracking-widest shadow-2xl border border-white/20">
+              SIX!!
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. WICKET Celebration - Full screen red flash, stump effect */}
+      {isWicket && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-950/45 backdrop-blur-[2px] animate-fade-in">
+          {/* Strobe screen boundary */}
+          <div className="absolute inset-0 border-[8px] border-red-600/50 animate-pulse"></div>
+          <div className="flex flex-col items-center space-y-2 z-10 animate-scale-up">
+            <div className="w-28 h-28 rounded-full border-4 border-red-500 bg-red-950/90 flex items-center justify-center shadow-[0_0_45px_rgba(220,38,38,0.8)]">
+              <div className="text-center">
+                <span className="text-5xl font-black font-['Poppins'] text-red-500 block">W</span>
+                <span className="text-[10px] font-extrabold text-red-300 tracking-wider block">OUT</span>
+              </div>
+            </div>
+            <div className="px-6 py-1.5 bg-gradient-to-r from-red-700 to-rose-600 rounded-full text-white font-black text-lg uppercase tracking-widest shadow-lg border border-white/10">
+              WICKET FALLEN!
+            </div>
           </div>
         </div>
       )}

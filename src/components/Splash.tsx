@@ -35,7 +35,7 @@ export const Splash: React.FC<Props> = ({ onComplete }) => {
         </div>
 
         {/* Title */}
-        <p className="text-sm tracking-wider text-blue-400 font-semibold uppercase mb-6 font-['Poppins']">
+        <p className="mt-12 text-[12px] font-bold tracking-[0.25em] text-white uppercase font-['Poppins'] text-center drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]">
           Box Cricket Score Counter
         </p>
       </div>

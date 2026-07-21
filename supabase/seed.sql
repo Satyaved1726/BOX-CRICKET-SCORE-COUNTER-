@@ -1,0 +1,4 @@
+-- BSC uses realtime live scoring.
+-- No sample data.
+-- No dummy matches.
+-- Every match is created from the application only.

@@ -15,6 +15,11 @@
   --radius-card: 22px;
 }
 
+html {
+  background-color: #000000;
+  color: #FFFFFF;
+}
+
 /* MANDATORY CONTAINMENT RULES */
 * {
   box-sizing: border-box;

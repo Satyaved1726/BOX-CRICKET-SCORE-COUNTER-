@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, PlusCircle, Eye, History, Settings, ShieldCheck, Play } from 'lucide-react';
+import { Trophy, PlusCircle, Eye, History, Settings, Play } from 'lucide-react';
 import type { MatchData } from '../types';
 import { sounds } from '../lib/audio';
 import { TeamCarousel } from './TeamCarousel';
@@ -159,14 +159,6 @@ export const HomeScreen: React.FC<Props> = ({
             </div>
             <div className="recent-score">78/4 vs 60/6</div>
           </div>
-        </div>
-      </div>
-
-      {/* Footer System Info */}
-      <div className="pt-3 border-t border-gray-800/60 text-center shrink-0">
-        <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 font-medium">
-          <ShieldCheck size={16} className="text-blue-400 shrink-0" />
-          <span>Realtime Supabase Engine • Native Android UI</span>
         </div>
       </div>
 
